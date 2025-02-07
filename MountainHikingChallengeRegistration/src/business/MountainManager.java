@@ -16,12 +16,13 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import model.Mountain;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
 public class MountainManager {
-    public ArrayList<Mountain> mountainList;
+    public ArrayList<Mountain> mountainList = new ArrayList<>();
     private String FILE_PATH = "E:\\FPT\\Spring 2025\\LAB211\\Lab\\MountainHikingChallengeRegistration\\src\\data\\MountainList.csv";
 
     public MountainManager() {
@@ -58,6 +59,7 @@ public class MountainManager {
             
             fileReader = new FileReader(mountainFile);
             BufferedReader bufferedReader = new BufferedReader(fileReader);
+            bufferedReader.readLine();
             String tmp = "";
 
             while((tmp = bufferedReader.readLine())!=null){
@@ -85,5 +87,42 @@ public class MountainManager {
     
     public String getFormattedMountainCode(int number) {
         return String.format("MT%02d", number);
+    }
+    
+    public void showAll(){
+        showAll(this.mountainList);
+    }
+    
+    public void showAll(ArrayList<Mountain> moutains) {
+        int index =1;
+        if (moutains == null || moutains.isEmpty()) {
+            System.out.println("No data available to display.");
+            return;
+        }
+        
+        System.out.println("+----+------------------------+------------+");
+        System.out.println(" No  | Mountain Name          | Code   ");
+        System.out.println("+----+------------------------+------------+");
+        
+        for (Mountain moutain : moutains) {
+            System.out.printf(" %3s | %-22s | %-10s \n",
+                    moutain.getMountainCode(),
+                    moutain.getMountain(),
+                    moutain.getProvince());
+        }
+        System.out.println("+----+------------------------+------------+");
+    }
+    
+    
+        public void displayMountainList(){
+        try{
+            readFromFile();
+        }catch(IOException ioException){
+            System.out.println("Error reading from file: " + ioException.getMessage());
+        }if(mountainList.isEmpty()){
+            System.out.println("No data to display");
+        }else{
+            showAll();
+        }
     }
 }
