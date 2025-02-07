@@ -21,17 +21,17 @@ public class StudentManager{
     private final MountainManager mountainManager = new MountainManager();
     private final StatisticManager statisticManager = new StatisticManager();
     private final Inputter input = new Inputter();
-    private boolean found = true;
-    private final double TUITION_FEE = 6000000;
+    private final double TUITION_FEE = 6000000.0;
     private boolean isSaved=true;
     public final ArrayList<Student> registrationList = new ArrayList<>();
+    public final ArrayList<Student> unSavedData = new ArrayList<>();
     private static final String FILE_PATH = "E:\\FPT\\Spring 2025\\LAB211\\Lab\\MountainHikingChallengeRegistration\\src\\data\\registrations.dat";
     private String[] VNPT_PREFIXES = {"081", "082", "083", "084", "085", "088", "091", "094"};
     private String[] VIETTEL_PREFIXES = {"032", "033", "034", "035", "036", "037", "038", "039", "096", "097", "098"};
     public final String HEADER_TABLE =    "-------------------------------------------------------------------------------------------------------\n"
                                         + String.format("%-38s | %-20s | %-10s | %-10s | %-10s%n", "Student ID", "Name", "Phone", "Peak Code", "Fee")
                                         + "-------------------------------------------------------------------------------------------------------";
-    public final String FOOTER_TABLE = "-------------------------------------------------------------------------------------------------------";
+    public final String FOOTER_TABLE =    "-------------------------------------------------------------------------------------------------------";
     
     public boolean isSaved(){
         return isSaved;
@@ -74,10 +74,10 @@ public class StudentManager{
             return;
         }
         registrationList.clear();
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+        try (ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream(file))) {
             while (true) {
                 try {
-                    Student student = (Student) ois.readObject();
+                    Student student = (Student) objectInputStream.readObject();
                     registrationList.add(student);
                 } catch (EOFException ex) {
                     break;
@@ -105,12 +105,12 @@ public class StudentManager{
         System.out.println(HEADER_TABLE);
         
         for(Student student : students) {
-            System.out.printf("%-38s | %-20s | %-10s | %-10s | %-10s%n",
+            System.out.printf("%-38s | %-20s | %-10s | %-10s | %,10.2f\n",
                     student.getIdStudent(),
                     student.getStudentName(),
                     student.getPhoneNumber(),
                     student.getMountainCode(),
-                    String.format("%,.2f", student.getTuitionFee()));
+                    student.getTuitionFee());
         }
         System.out.println(FOOTER_TABLE);
     }
@@ -155,10 +155,11 @@ public class StudentManager{
                     idStudent= "QE"+generateStudentID();
                     break;
             }
-        System.out.println("Your id:\t" + idStudent);
+        System.out.println("Your id: " + idStudent);
         String nameStudent = input.inputAndLoop("What is your name? ", Acceptable.NAME_VALID);
         String phoneNumber = input.inputAndLoop("What is your phone number? ", Acceptable.PHONE_VALID);
         String emailStudent = input.inputAndLoop("What is your email address? ", Acceptable.EMAIL_VALID);
+        mountainManager.displayMountainList();
         System.out.print("Enter mountain code: ");
         String mountainCode = mountainManager.getFormattedMountainCode(input.getValidChoice(1, 13));
         String prefix = phoneNumber.substring(0, 3);
@@ -172,13 +173,15 @@ public class StudentManager{
         
         Student newStudent = new Student(idStudent, nameStudent, phoneNumber,emailStudent,mountainCode,finalTuitionFee);
         
-        registrationList.add(newStudent);
+        
         
         System.out.print("Do you want to save the information?(Y/N) \t");
         userResponse = inputScanner.nextLine();
         if(userResponse.toLowerCase().contains("y")){
+            registrationList.add(newStudent);
             saveToFile();
         }else{
+            unSavedData.add(newStudent);
             isSaved = false;
         }
     }
@@ -225,12 +228,12 @@ public class StudentManager{
         
         String newEmail = input.inputOptional("What is your email address? ", Acceptable.EMAIL_VALID);
         if (!newEmail.isEmpty()) foundStudent.setEmail(newEmail);
-        
-        String newMountainCode = mountainManager.getFormattedMountainCode(input.getInputInt("Enter mountain code: "));
-        if (!newMountainCode.isEmpty()) foundStudent.setMountainCode(newMountainCode);
-        
-        
-        
+         
+        //mountaincode
+        int previousMountainCode = input.extractNumberFromCode(foundStudent.getMountainCode());
+        int newMountainNumber = input.getInputInt("Enter mountain code: ");
+        String newMountainCode = input.getFormattedMountainCode(newMountainNumber, previousMountainCode);
+        foundStudent.setMountainCode(newMountainCode);
         
         System.out.print("Do you want to save the information?(Y/N) \t");
         userResponse = inputScanner.nextLine().trim().toLowerCase();
@@ -268,7 +271,7 @@ public class StudentManager{
         System.out.println("Name      : "+ foundStudent.getStudentName());
         System.out.println("Phone     : "+ foundStudent.getPhoneNumber());
         System.out.println("Mountain  : "+ foundStudent.getMountainCode());
-        System.out.println("Fee       : "+ foundStudent.getTuitionFee());
+        System.out.println("Fee       : "+ String.format("%,9.0f",foundStudent.getTuitionFee()));
         
         System.out.println(FOOTER_TABLE);
         
@@ -292,16 +295,20 @@ public class StudentManager{
             System.out.println("Error reading from file: " + iOException.getMessage());
         }
         
-        System.out.println(HEADER_TABLE);
-        for(Student student : registrationList) {
-            if(student.getStudentName().equalsIgnoreCase(name)){
-                found = true;
-                System.out.println(student);
+        List<Student> matchedStudents = new ArrayList<>();
+        
+        for (Student student : registrationList) {
+            if(student.getStudentName().trim().toLowerCase().contains(name.trim().toLowerCase())){
+                matchedStudents.add(student);
             }
         }
-        System.out.println(FOOTER_TABLE);
-        
-        if(!found){
+        if(!matchedStudents.isEmpty()){
+                System.out.println(HEADER_TABLE);
+            for(Student student : matchedStudents) {
+                    System.out.println(student);
+            }
+            System.out.println(FOOTER_TABLE);
+        }else{
             System.out.println("No one matches the search criteria!");
         }
     }
@@ -382,13 +389,15 @@ public class StudentManager{
     //Function 9: Exit the Program
     public void exitTheProgram() {
     if (!isSaved) {
-        System.out.print("You have unsaved changes. Are you sure you want to exit without saving? (Y/N): ");
+        showAll(unSavedData);
+        System.out.println("You have unsaved changes. Are you sure you want to exit without saving? (Y/N): ");
         String response = inputScanner.nextLine().trim().toLowerCase();
-
+        
         if (response.equals("y")) {
             System.out.println("Exiting the program without saving...");
             System.exit(0);
         } else if (response.equals("n")) {
+            registrationList.addAll(unSavedData);
             saveToFile();
             System.out.println("Changes saved. Exiting the program...");
             System.exit(0);
